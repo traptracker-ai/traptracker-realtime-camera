@@ -1,0 +1,41 @@
+# GPU deployment (NVIDIA only, x86_64). Requires NVIDIA drivers and
+# nvidia-container-toolkit on the host. Run with:
+#   docker compose -f docker-compose.gpu.yml up --build
+# If the GPU isn't usable at runtime, the app logs why and falls back to CPU.
+services:
+  traptracker-rt:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    container_name: traptracker-rt
+    ports:
+      - "127.0.0.1:8501:8501"        # localhost only — see note in docker-compose.yml
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./projects:/app/projects
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8501
+      - MODEL_DIR=/app/models
+      - DATA_DIR=/app/data
+      - PROJECTS_DIR=/app/projects
+      - INPUT_SIZE=640
+      - CONF_THRESHOLD=0.10
+      - ORT_PROVIDERS=CUDAExecutionProvider,CPUExecutionProvider
+      - POLL_EMAIL_SECONDS=30
+      - POLL_INBOUND_SECONDS=10
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8501/healthz', timeout=5).status==200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

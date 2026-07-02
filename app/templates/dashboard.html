@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block subtitle %}Overview of your real-time monitoring projects{% endblock %}
+{% block content %}
+
+<div class="metric-grid small">
+  <div class="metric"><label>Projects</label><strong>{{ total_projects }}</strong><span>configured</span></div>
+  <div class="metric"><label>Cameras</label><strong>{{ total_cameras }}</strong><span>assigned</span></div>
+  <div class="metric"><label>Monitoring</label><strong>{{ running_count }}</strong><span>running now</span></div>
+</div>
+
+<div class="metric-grid small">
+  <div class="metric"><label>Images Processed</label><strong>{{ total_images }}</strong><span>all projects</span></div>
+  <div class="metric"><label>Detections</label><strong>{{ total_detections }}</strong><span>recorded</span></div>
+  <div class="metric"><label>Workflow</label><strong>Live</strong><span>poll → detect → alert</span></div>
+</div>
+
+<div class="card">
+  <div class="section-head"><h2>Projects</h2><a class="btn primary" href="{{ url_for('project_new') }}">Create project</a></div>
+  {% if rows %}
+  <table class="project-table">
+    <thead><tr><th>Name</th><th>Cameras</th><th>Watch-list</th><th>Images</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><a href="{{ url_for('project_detail', project_id=r.project.id) }}"><b>{{ r.project.name }}</b></a></td>
+        <td>{{ r.cameras }}</td>
+        <td>{{ r.rules }}</td>
+        <td>{{ r.images }}</td>
+        <td class="status-cell">
+          {% if r.running %}<span class="pill running">Running</span>
+          {% else %}<span class="pill">Stopped</span>{% endif %}
+        </td>
+        <td class="row-actions">
+          {% if r.running %}
+            <form class="inline-form" method="post" action="{{ url_for('project_stop', project_id=r.project.id) }}">
+              <input type="hidden" name="return_to" value="dashboard">
+              <button class="btn sm danger" type="submit">Stop</button>
+            </form>
+          {% else %}
+            <form class="inline-form" method="post" action="{{ url_for('project_start', project_id=r.project.id) }}">
+              <input type="hidden" name="return_to" value="dashboard">
+              <button class="btn sm primary" type="submit">Start</button>
+            </form>
+          {% endif %}
+          <a class="btn sm" href="{{ url_for('project_detail', project_id=r.project.id) }}">Open</a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">No projects yet. Create your first real-time monitoring project to get started.</div>
+  {% endif %}
+</div>
+
+{% endblock %}

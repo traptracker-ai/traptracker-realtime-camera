@@ -1,0 +1,81 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Credentials and local/private config
+credentials/
+secrets/
+*.key
+*.pem
+*.crt
+*.pfx
+config/local*
+config/private*
+settings/local*
+settings/private*
+
+# Databases and generated runtime state
+*.sqlite
+*.sqlite3
+*.db
+data/*
+!data/.gitkeep
+projects/*
+!projects/.gitkeep
+logs/*
+!logs/.gitkeep
+outputs/*
+!outputs/.gitkeep
+alerts/*
+!alerts/.gitkeep
+captures/*
+!captures/.gitkeep
+runs/*
+!runs/.gitkeep
+
+# Model weights - publish separately through Zenodo or another release service
+*.onnx
+*.pt
+*.pth
+*.engine
+*.weights
+*.tflite
+*.h5
+models/*
+!models/.gitkeep
+!models/README.md
+
+# Data and exports
+uploads/
+results/
+datasets/
+exports/
+recordings/
+snapshots/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.next/
+.vite/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker archives
+*.tar

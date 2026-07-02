@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block subtitle %}Configure cameras, watch-list and alerts, then start monitoring{% endblock %}
+{% block content %}
+
+<div class="tabs">
+  <a href="#cameras">Cameras</a>
+  <a href="#email">Email Source</a>
+  <a href="#alerts">Watch-list &amp; Alerts</a>
+  <a href="#run">Monitoring</a>
+  <a href="{{ url_for('gallery', project_id=project.id) }}">Gallery ({{ image_count }})</a>
+</div>
+
+<div class="metric-grid small">
+  <div class="metric"><label>Cameras</label><strong>{{ cameras|length }}</strong><span>{{ cameras|selectattr('is_enabled')|list|length }} enabled</span></div>
+  <div class="metric"><label>Watch-list</label><strong>{{ rules|length }}</strong><span>species</span></div>
+  <div class="metric"><label>Status</label>
+    <strong style="font-size:30px">{% if running %}Running{% else %}Stopped{% endif %}</strong>
+    <span>{{ recipients|length }} recipient(s)</span>
+  </div>
+</div>
+
+<!-- ===================== MONITORING ===================== -->
+<div class="card" id="run">
+  <div class="section-head">
+    <h2>Monitoring</h2>
+    <div class="row-actions">
+      {% if running %}
+        <form class="inline-form" method="post" action="{{ url_for('project_stop', project_id=project.id) }}">
+          <button class="btn danger" type="submit">Stop monitoring</button>
+        </form>
+      {% else %}
+        <form class="inline-form" method="post" action="{{ url_for('project_start', project_id=project.id) }}">
+          <button class="btn primary" type="submit">Start monitoring</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+  <div class="hint">When running, the project polls its mailbox every few seconds, downloads images from emails whose subject contains a matching camera token <code>(=CameraName=)</code>, classifies them, and emails alerts for any watch-list species detected.</div>
+  {% if not models %}
+    <div class="flash" style="background:#fee4e2;border-color:#f2b8b5">No ONNX models found in the models folder. Add a <code>.onnx</code> file with a matching <code>.txt</code> class list, then refresh.</div>
+  {% elif not current_model %}
+    <div class="flash" style="background:#fee4e2;border-color:#f2b8b5">This project's model could not be resolved. Edit the project to pick a model.</div>
+  {% else %}
+    <p class="muted">Active model: <code>{{ current_model.id }}</code>{% if current_model.num_classes %} · {{ current_model.num_classes }} species{% endif %} · <a href="{{ url_for('project_edit', project_id=project.id) }}">change</a></p>
+  {% endif %}
+  <div class="logbox" id="logbox">Logs will appear here when monitoring starts…</div>
+</div>
+
+<div class="subgrid">
+
+  <!-- ===================== CAMERAS ===================== -->
+  <div class="card" id="cameras">
+    <h2>Cameras</h2>
+    <div class="hint">Each camera maps a subject token to a routing key. A camera emails images with a subject like <code>Trail cam (=Camera01=)</code>; the token <b>Camera01</b> must match a camera Name or Routing key below.</div>
+    {% if cameras %}
+    <table>
+      <thead><tr><th>Name</th><th>Routing key</th><th>Type</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for c in cameras %}
+        <tr>
+          <td><b>{{ c.name }}</b>{% if c.location_description %}<br><small class="muted">{{ c.location_description }}</small>{% endif %}</td>
+          <td><code>{{ c.routing_key }}</code></td>
+          <td>{{ c.connection_type }}</td>
+          <td>{% if c.is_enabled %}<span class="tag on">Enabled</span>{% else %}<span class="tag off">Disabled</span>{% endif %}</td>
+          <td class="row-actions">
+            <form class="inline-form" method="post" action="{{ url_for('camera_toggle', camera_id=c.id) }}"><button class="btn sm" type="submit">{{ 'Disable' if c.is_enabled else 'Enable' }}</button></form>
+            <form class="inline-form" method="post" action="{{ url_for('camera_delete', camera_id=c.id) }}" onsubmit="return confirm('Remove this camera?')"><button class="btn sm danger" type="submit">Delete</button></form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="empty">No cameras assigned yet.</div>{% endif %}
+
+    <h2 style="margin-top:22px">Add camera</h2>
+    <form method="post" action="{{ url_for('camera_add', project_id=project.id) }}">
+      <div class="field-row">
+        <label>Name<input type="text" name="name" placeholder="Camera01" required></label>
+        <label>Routing key<input type="text" name="routing_key" placeholder="(defaults to name)"></label>
+      </div>
+      <div class="field-row">
+        <label>Camera code<input type="text" name="camera_code" placeholder="TT-QR-00123"></label>
+        <label>Phone number<input type="text" name="phone_number" placeholder="(LTE SIM, optional)"></label>
+      </div>
+      <div class="field-row">
+        <label>Connection type
+          <select name="connection_type"><option>Unknown</option><option>LTE</option><option>WiFi</option><option>Ethernet</option></select>
+        </label>
+        <label>Location<input type="text" name="location_description" placeholder="North ridge"></label>
+      </div>
+      <label>Notes<input type="text" name="notes" placeholder="Mounting height, field conditions…"></label>
+      <button class="btn primary" type="submit">Add camera</button>
+    </form>
+  </div>
+
+  <!-- ===================== EMAIL SOURCE ===================== -->
+  <div class="card" id="email">
+    <h2>Email Source</h2>
+    <div class="hint">The mailbox cameras send images to. App passwords are recommended for Gmail. Leave the password blank to keep the existing one when re-saving.</div>
+    <form method="post" action="{{ url_for('email_settings_save', project_id=project.id) }}">
+      <label>Email address<input type="email" name="email_address" value="{{ settings.email_address if settings else '' }}" placeholder="cameras@example.com"></label>
+      <label>App password<input type="password" name="app_password" placeholder="{{ '•••••••• (set)' if settings and settings.app_password else 'enter app password' }}"></label>
+      <div class="field-row">
+        <label>IMAP host<input type="text" name="imap_host" value="{{ settings.imap_host if settings else 'imap.gmail.com' }}"></label>
+        <label>IMAP port<input type="number" name="imap_port" value="{{ settings.imap_port if settings else 993 }}"></label>
+      </div>
+      <label class="check"><input type="checkbox" name="use_ssl" {{ 'checked' if not settings or settings.use_ssl else '' }}> Use SSL for IMAP</label>
+      <div class="field-row">
+        <label>SMTP host<input type="text" name="smtp_host" value="{{ settings.smtp_host if settings else 'smtp.gmail.com' }}"></label>
+        <label>SMTP port<input type="number" name="smtp_port" value="{{ settings.smtp_port if settings else 587 }}"></label>
+      </div>
+      <label class="check"><input type="checkbox" name="smtp_starttls" {{ 'checked' if not settings or settings.smtp_starttls else '' }}> Use STARTTLS for SMTP</label>
+      <label>Search query (reference)<input type="text" name="search_query" value="{{ settings.search_query if settings else 'has:attachment newer_than:7d' }}"></label>
+      <button class="btn primary" type="submit">Save email settings</button>
+    </form>
+    <h2 style="margin-top:22px">Send test email</h2>
+    <form method="post" action="{{ url_for('email_settings_test', project_id=project.id) }}">
+      <div class="input-row">
+        <label class="grow">Send to<input type="email" name="test_to" placeholder="{{ settings.email_address if settings else 'you@example.com' }}"></label>
+        <button class="btn" type="submit">Send test</button>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+<!-- ===================== WATCH-LIST & ALERTS ===================== -->
+<div class="card" id="alerts">
+  <h2>Species Watch-list</h2>
+  <div class="hint">When a watch-list species is detected at or above its minimum confidence, every recipient gets an email with the annotated image attached.</div>
+
+  {% if rules %}
+  <table>
+    <thead><tr><th>Species</th><th>Min confidence</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rules %}
+      <tr>
+        <td><b>{{ r.label }}</b></td>
+        <td>{{ '%.2f'|format(r.min_confidence) }}</td>
+        <td>{% if r.is_enabled %}<span class="tag on">On</span>{% else %}<span class="tag off">Off</span>{% endif %}</td>
+        <td class="row-actions">
+          <form class="inline-form" method="post" action="{{ url_for('rule_toggle', rule_id=r.id) }}"><button class="btn sm" type="submit">{{ 'Disable' if r.is_enabled else 'Enable' }}</button></form>
+          <form class="inline-form" method="post" action="{{ url_for('rule_delete', rule_id=r.id) }}"><button class="btn sm danger" type="submit">Remove</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty">No species on the watch-list yet.</div>{% endif %}
+
+  <h2 style="margin-top:22px">Add species</h2>
+  <form method="post" action="{{ url_for('rule_add', project_id=project.id) }}">
+    <div class="field-row">
+      <label>Species
+        <select name="label" required>
+          <option value="">Select a species…</option>
+          {% for sp in species %}<option value="{{ sp }}">{{ sp }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Minimum confidence
+        <input type="number" name="min_confidence" min="0" max="1" step="0.05" value="0.50">
+      </label>
+    </div>
+    <button class="btn primary" type="submit">Add to watch-list</button>
+  </form>
+
+  <h2 style="margin-top:26px">Alert Recipients</h2>
+  <div>
+    {% for r in recipients %}
+      <span class="species-pill">{{ r.email }}
+        <form class="inline-form" method="post" action="{{ url_for('recipient_delete', recipient_id=r.id) }}"><button class="btn sm danger" type="submit" style="padding:2px 8px">×</button></form>
+      </span>
+    {% else %}<div class="empty">No recipients yet.</div>{% endfor %}
+  </div>
+  <form method="post" action="{{ url_for('recipient_add', project_id=project.id) }}" style="margin-top:14px">
+    <div class="input-row">
+      <label class="grow">Add recipient email<input type="email" name="email" placeholder="ranger@example.com" required></label>
+      <button class="btn primary" type="submit">Add recipient</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="section-head">
+    <h2>Project</h2>
+    <div class="row-actions">
+      <a class="btn" href="{{ url_for('project_edit', project_id=project.id) }}">Edit details</a>
+      <form class="inline-form" method="post" action="{{ url_for('project_delete', project_id=project.id) }}" onsubmit="return confirm('Delete this project and all its data?')"><button class="btn danger" type="submit">Delete project</button></form>
+    </div>
+  </div>
+  <p class="muted">Created {{ project.created_at_utc.strftime('%Y-%m-%d %H:%M UTC') }} · Model: <code>{{ project.model_folder }}</code></p>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const logUrl = "{{ url_for('project_logs', project_id=project.id) }}";
+const box = document.getElementById('logbox');
+async function pollLogs(){
+  try{
+    const res = await fetch(logUrl);
+    const data = await res.json();
+    if(data.logs && data.logs.length){
+      const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 20;
+      box.textContent = data.logs.join('\n');
+      if(atBottom) box.scrollTop = box.scrollHeight;
+    }
+  }catch(e){}
+}
+pollLogs();
+setInterval(pollLogs, 3000);
+</script>
+{% endblock %}

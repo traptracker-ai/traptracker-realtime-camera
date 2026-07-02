@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}Tutorial &amp; Guide{% endblock %}
+{% block subtitle %}How to set up and run real-time monitoring{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="hint" style="background:#fff4f4;border-color:#f2b8b5">
+    <b>Run on your own machine only.</b> TrapTracker RT has no login and stores your
+    email app password locally. The default setup publishes it on localhost only —
+    keep it that way unless you've secured access yourself.
+  </div>
+
+  <h2>What it does</h2>
+  <p>TrapTracker RT watches an email inbox your trail cameras send photos to. When a
+  new image arrives it downloads the photo, identifies the species with an AI model,
+  checks it against your watch-list, and emails your stakeholders the labelled image
+  when a watched species is detected. Everything is organised into projects.</p>
+</div>
+
+<div class="card">
+  <h2>Setup steps</h2>
+
+  <h3>1 · Add your model(s)</h3>
+  <p>Put your <code>.onnx</code> model and its matching <code>.txt</code> class list
+  (same base name) in the <code>models/</code> folder. Add as many as you like — each
+  project picks one.</p>
+
+  <h3>2 · Start the app</h3>
+  <p><b>You do not need a GPU.</b> The default build runs on any computer
+  (Windows, Mac including Apple Silicon, or Linux) using the CPU.</p>
+  <p><b>Default (CPU, recommended):</b> <code>docker compose up --build</code><br>
+  <b>GPU (optional, NVIDIA only):</b> <code>docker compose -f docker-compose.gpu.yml up --build</code></p>
+  <p>The GPU build needs an NVIDIA GPU, current drivers, and the NVIDIA Container
+  Toolkit on the host. Either way, the app tries the GPU first and
+  <b>falls back to CPU automatically</b> if it can't be used, noting the reason in
+  the monitoring log. Then open <code>http://localhost:8501</code>. You can see
+  whether it's on GPU or CPU in the <b>System Status</b> box in the sidebar.</p>
+  <div class="hint">
+    <b>GPU compatibility.</b> Tested on NVIDIA RTX A6000 · Driver 573.73 · CUDA 12.8.
+    Minimum: NVIDIA driver ≥ 525 (CUDA 12.x capable), x86_64. The image targets
+    CUDA 12.x / cuDNN 9.x (onnxruntime-gpu 1.19.2). Check yours with
+    <code>nvidia-smi</code> — if CUDA Version reads 12.x, the GPU build will work.
+  </div>
+
+  <h3>3 · Prepare a camera email account</h3>
+  <p>Use a dedicated Gmail for your cameras. Turn on 2-Step Verification, create an
+  <b>App Password</b> (for "Mail"), and enable IMAP in Gmail settings. You'll use the
+  16-character app password — not your normal password.</p>
+
+  <h3>4 · Create a project</h3>
+  <p>Click <b>New Project</b>, name it, and choose its detection model.</p>
+
+  <h3>5 · Add cameras</h3>
+  <p>Each camera is identified by a token in the email subject, written between
+  <code>=</code> signs, e.g. <code>Trail cam (=Camera01=)</code>. Add a camera whose
+  <b>Name</b> (or Routing key) matches that token. Only emails with a matching token
+  are processed.</p>
+
+  <h3>6 · Configure the email source</h3>
+  <p>Enter the camera mailbox address and app password. Gmail defaults:
+  IMAP <code>imap.gmail.com:993</code> (SSL), SMTP <code>smtp.gmail.com:587</code>
+  (STARTTLS). Save, then use <b>Send test email</b> to confirm — ideally to a
+  different address than the sender.</p>
+
+  <h3>7 · Build your watch-list</h3>
+  <p>Pick the species to be alerted about from the dropdown (drawn from your model's
+  classes) and set a minimum confidence (0.50 is a good start).</p>
+
+  <h3>8 · Add recipients</h3>
+  <p>Add everyone who should receive alert emails. Each gets the labelled image
+  attached.</p>
+
+  <h3>9 · Start monitoring</h3>
+  <p>Click <b>Start monitoring</b> and watch the live log. The app runs continuously
+  and resumes automatically if the computer restarts. Use the <b>Gallery</b> to review
+  processed images.</p>
+</div>
+
+<div class="card">
+  <h2>How the flow works</h2>
+  <table>
+    <tbody>
+      <tr><td><b>1</b></td><td>Camera takes a photo</td></tr>
+      <tr><td><b>2</b></td><td>Camera emails it, subject contains <code>(=Camera01=)</code></td></tr>
+      <tr><td><b>3</b></td><td>TrapTracker RT polls the mailbox (~every 30s) and matches the token to a camera</td></tr>
+      <tr><td><b>4</b></td><td>Downloads the image and runs the AI model</td></tr>
+      <tr><td><b>5</b></td><td>If a watch-list species is detected above its confidence, emails all recipients the labelled image</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Troubleshooting</h2>
+  <p><b>Build error "No matching distribution found for onnxruntime-gpu":</b>
+  you're building the GPU image on a machine that can't use it (often an Apple
+  Silicon Mac or ARM server). Use the default CPU build:
+  <code>docker compose up --build</code>.</p>
+  <p><b>Missing GPU / NVIDIA driver / CUDA version errors:</b> the GPU build needs
+  an NVIDIA GPU, current drivers, and the NVIDIA Container Toolkit on the host. If
+  you don't have all three, use the default CPU build. A running GPU build also
+  falls back to CPU automatically and logs why.</p>
+  <p><b>Port 8501 already in use:</b> change the published port in the compose
+  file (e.g. <code>127.0.0.1:8600:8501</code>) and open
+  <code>http://localhost:8600</code>.</p>
+  <p><b>"Alert sent" but no email:</b> check Spam / All Mail in the recipient inbox;
+  mark "Not spam" or add a filter. Test with a recipient different from the sender.</p>
+  <p><b>IMAP login failed:</b> confirm you used the App Password (not the account
+  password) and that IMAP is enabled. Fix settings, then Stop and Start again.</p>
+  <p><b>No species in the dropdown:</b> the model's <code>.txt</code> class list is
+  missing or misnamed — it must match the <code>.onnx</code> base name.</p>
+  <p><b>Images not picked up:</b> the subject must contain <code>(=CameraName=)</code>
+  matching a camera you added.</p>
+  <p><b>Check what the app sees:</b> visit
+  <a href="{{ url_for('healthz') }}">/healthz</a> for detected models.</p>
+</div>
+
+{% endblock %}

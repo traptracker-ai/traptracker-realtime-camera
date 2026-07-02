@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}{{ project.name }} — Gallery{% endblock %}
+{% block subtitle %}Processed images and detections{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="section-head">
+    <h2>Recent Images</h2>
+    <a class="btn" href="{{ url_for('project_detail', project_id=project.id) }}">Back to project</a>
+  </div>
+  {% if rows %}
+  <div class="gallery">
+    {% for r in rows %}
+      <a class="thumb" href="{{ url_for('serve_image', image_id=r.image.id, kind='boxed' if r.has_boxed else 'original') }}" target="_blank">
+        <img src="{{ url_for('serve_image', image_id=r.image.id, kind='boxed' if r.has_boxed else 'original') }}" alt="{{ r.image.file_name }}">
+        <span>
+          {% if r.best %}<b>{{ r.best.label }}</b> {{ '%.2f'|format(r.best.confidence) }}{% else %}No detection{% endif %}
+          · {{ r.count }} det.
+        </span>
+        <span>{{ r.image.camera_name or 'camera' }} · {{ r.image.received_at_utc.strftime('%m-%d %H:%M') }}</span>
+      </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">No images processed yet. Start monitoring and send a camera email to populate the gallery.</div>
+  {% endif %}
+</div>
+
+{% endblock %}

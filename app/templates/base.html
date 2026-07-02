@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TrapTracker RT — Real-Time Monitoring</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/logo.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="{{ url_for('static', filename='img/logo-wide.png') }}" alt="TrapTracker">
+      <p>Real-Time Camera<br>Monitoring &amp; Alerts</p>
+    </div>
+    <nav>
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.path == '/' else '' }}">Dashboard</a>
+      <a href="{{ url_for('project_new') }}" class="{{ 'active' if request.path.startswith('/projects/new') else '' }}">New Project</a>
+      <a href="{{ url_for('tutorial') }}" class="{{ 'active' if request.path == '/tutorial' else '' }}">Tutorial</a>
+    </nav>
+    <div class="status-box">
+      <span class="dot"></span><b>System Status</b><br>
+      <small>Compute: <b>{{ compute_label }}</b></small><br>
+      <small>Models: <b>{{ model_count }}</b> found</small><br>
+      <small>Monitoring: <b>{{ running_count }}</b> project(s)</small>
+    </div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1>{% block title %}TrapTracker RT{% endblock %}</h1>
+        <p>{% block subtitle %}Email-driven real-time wildlife detection &amp; alerting{% endblock %}</p>
+      </div>
+      <a class="btn primary" href="{{ url_for('project_new') }}">New Project</a>
+    </header>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}<div class="flash">{{ messages[0] }}</div>{% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

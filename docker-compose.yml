@@ -1,0 +1,37 @@
+# Default deployment: CPU-only, works on any machine (Intel/AMD, Apple
+# Silicon, Linux/macOS/Windows). For NVIDIA GPU acceleration instead, use:
+#   docker compose -f docker-compose.gpu.yml up --build
+services:
+  traptracker-rt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: traptracker-rt
+    # Published on localhost ONLY. The UI holds email credentials and has no
+    # login, so it must not be reachable from the network. To expose it on a
+    # trusted LAN, change to "0.0.0.0:8501:8501" AND understand the risk.
+    ports:
+      - "127.0.0.1:8501:8501"
+    volumes:
+      - ./models:/app/models          # your .onnx model(s) + matching .txt class lists
+      - ./data:/app/data              # sqlite database + secret key (persistent)
+      - ./projects:/app/projects      # per-project image storage (persistent)
+    environment:
+      - HOST=0.0.0.0                  # bind inside container; host exposure limited by port mapping
+      - PORT=8501
+      - MODEL_DIR=/app/models
+      - DATA_DIR=/app/data
+      - PROJECTS_DIR=/app/projects
+      - INPUT_SIZE=640
+      - CONF_THRESHOLD=0.10
+      - ORT_PROVIDERS=CPUExecutionProvider
+      - POLL_EMAIL_SECONDS=30
+      - POLL_INBOUND_SECONDS=10
+      # SECRET_KEY is auto-generated and persisted to ./data/.secret_key.
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8501/healthz', timeout=5).status==200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

@@ -1,0 +1,41 @@
+.git/
+.gitignore
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Runtime data and secrets
+data/
+projects/
+logs/
+outputs/
+alerts/
+captures/
+runs/
+.env
+.env.*
+credentials/
+secrets/
+*.key
+*.pem
+*.crt
+*.pfx
+*.sqlite
+*.sqlite3
+*.db
+
+# Large model weights are mounted at runtime, not baked into the image
+models/
+*.onnx
+*.pt
+*.pth
+*.engine
+*.weights
+*.tflite
+*.h5
+
+# Documentation not needed in the image
+*.md

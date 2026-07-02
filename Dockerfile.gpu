@@ -1,0 +1,40 @@
+# GPU build (Option A): self-contained CUDA via pip.
+#
+# Uses a slim Python base and installs the CUDA 12 / cuDNN 9 runtime libraries
+# from PyPI (the nvidia-*-cu12 wheels) rather than relying on a CUDA base image
+# shipping the right .so files. This avoids the version-mismatch errors (e.g.
+# "libcublasLt.so.11: cannot open shared object file") that occur when the base
+# image's CUDA libraries don't match what onnxruntime-gpu expects.
+#
+# Requirements on the HOST: an NVIDIA GPU, a recent driver (CUDA 12.x capable),
+# and the NVIDIA Container Toolkit. No CUDA toolkit install is needed on the host
+# beyond the driver. x86_64 only. If the GPU can't be used at runtime, the app
+# logs why and falls back to CPU automatically.
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    ORT_PROVIDERS=CUDAExecutionProvider,CPUExecutionProvider
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglib2.0-0 libgl1 libsm6 libxext6 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements-gpu.txt .
+RUN pip install --upgrade pip && pip install -r requirements-gpu.txt
+
+# onnxruntime does NOT add the pip-installed CUDA libs to the loader path on
+# its own, so we register every nvidia/*/lib directory with the dynamic linker.
+# Computing the site-packages path at build time keeps this correct even if the
+# Python version changes.
+RUN SP="$(python -c 'import site; print(site.getsitepackages()[0])')" && \
+    for d in cudnn cublas cuda_runtime cufft curand cuda_nvrtc; do \
+        echo "$SP/nvidia/$d/lib"; \
+    done > /etc/ld.so.conf.d/nvidia-pip.conf && \
+    ldconfig
+
+COPY . .
+
+EXPOSE 8501
+CMD ["python", "run.py"]

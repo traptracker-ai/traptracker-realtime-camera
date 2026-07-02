@@ -1,0 +1,9 @@
+# Default (CPU) dependencies — cross-platform: works on Intel/AMD, Apple
+# Silicon (ARM64), Linux, macOS and Windows, with or without a GPU.
+Flask==3.0.3
+SQLAlchemy==2.0.32
+onnxruntime==1.18.1
+opencv-python-headless==4.10.0.84
+numpy==1.26.4
+Pillow==10.4.0
+waitress==3.0.0

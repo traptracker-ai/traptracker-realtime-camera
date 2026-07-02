@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit Project' if project else 'New Project' }}{% endblock %}
+{% block subtitle %}{{ 'Update project details' if project else 'Create a real-time monitoring project' }}{% endblock %}
+{% block content %}
+
+<div class="card narrow">
+  <h2>{{ 'Edit' if project else 'Create' }} Project</h2>
+  <form method="post" action="{{ url_for('project_edit', project_id=project.id) if project else url_for('project_new') }}">
+    <label>Project name
+      <input type="text" name="name" value="{{ project.name if project else '' }}" placeholder="e.g. North Pennines Survey" required>
+    </label>
+    <label>Detection model
+      {% if models %}
+      <select name="model_folder" required>
+        {% for m in models %}
+          <option value="{{ m.id }}" {{ 'selected' if project and project.model_folder == m.id else '' }}>
+            {{ m.id }}{% if m.num_classes %} ({{ m.num_classes }} species){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <small>The ONNX models found in your models folder. Each project classifies images with its selected model.</small>
+      {% else %}
+      <input type="text" name="model_folder" value="{{ project.model_folder if project else '' }}" placeholder="(no models found)">
+      <small style="color:var(--danger)">No ONNX models found in the models folder. Add a <code>.onnx</code> file with a matching <code>.txt</code> class list.</small>
+      {% endif %}
+    </label>
+    <div class="actions">
+      <button class="btn primary big" type="submit">{{ 'Save changes' if project else 'Create project' }}</button>
+      <a class="btn" href="{{ url_for('project_detail', project_id=project.id) if project else url_for('dashboard') }}">Cancel</a>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

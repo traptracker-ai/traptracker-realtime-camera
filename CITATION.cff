@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software in research, please cite it using the metadata below."
+title: "Trap Tracker Real-Time Camera App"
+authors:
+  - family-names: Fergus
+    given-names: Paul
+abstract: "Docker-based web application for real-time camera trap ingestion, AI-assisted detection and alerting for conservation and ecological research."
+version: 0.1.0
+license: "Trap Tracker Research and Non-Commercial Licence"
+repository-code: "https://github.com/traptracker-ai/traptracker-realtime-camera"
+url: "https://www.traptracker.co.uk"
+keywords:
+  - conservation AI
+  - camera traps
+  - biodiversity monitoring
+  - object detection
+  - Docker
