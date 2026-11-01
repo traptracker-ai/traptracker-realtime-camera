@@ -32,14 +32,14 @@ STAGE2_SUFFIX = '_stage2_classifier.onnx'
 
 
 def _classes_path_for(onnx_path):
+    # Only the model's own class list: a shared classes.txt could belong to a
+    # different model and would put the wrong species names on every box.
     base, _ = os.path.splitext(onnx_path)
     for ext in ('.txt', '.json', '.names'):
         cand = base + ext
         if os.path.exists(cand):
             return cand
-    # Fall back to a generic classes.txt in the same dir, if present.
-    generic = os.path.join(os.path.dirname(onnx_path), 'classes.txt')
-    return generic if os.path.exists(generic) else None
+    return None
 
 
 def _list_two_stage(model_dir):
@@ -97,21 +97,17 @@ def list_models():
 
 
 def get_model(model_id):
-    """Resolve a stored model id to its paths, with sensible fallbacks."""
-    models = list_models()
-    if not models:
+    """Resolve a stored model id to its paths, or None if that model isn't in MODEL_DIR.
+
+    Exact matches only: substituting a similarly named or the first model
+    would quietly classify a project's images with a model it didn't choose.
+    """
+    if not model_id:
         return None
-    if model_id:
-        for m in models:
-            if m['id'] == model_id:
-                return m
-        # Tolerate legacy/loose values: match by substring.
-        low = model_id.lower()
-        for m in models:
-            if low in m['id'].lower():
-                return m
-    # No match: fall back to the first available model.
-    return models[0]
+    for m in list_models():
+        if m['id'] == model_id:
+            return m
+    return None
 
 
 def _read_classes(path):
@@ -135,16 +131,11 @@ def _detector_names(onnx_path, _mtime):
     """Class names embedded in a stage 1 detector (Ultralytics `names` metadata)."""
     try:
         import onnxruntime as ort
-        from .detector import _parse_literal
+        from .detector import _meta_names
         sess = ort.InferenceSession(onnx_path, providers=['CPUExecutionProvider'])
-        names = _parse_literal(sess.get_modelmeta().custom_metadata_map.get('names'))
+        return tuple(_meta_names(sess.get_modelmeta().custom_metadata_map))
     except Exception:
         return ()
-    if isinstance(names, dict):
-        return tuple(str(names[k]) for k in sorted(names, key=int))
-    if isinstance(names, list):
-        return tuple(str(n) for n in names)
-    return ()
 
 
 def classes_for_model(model_id):

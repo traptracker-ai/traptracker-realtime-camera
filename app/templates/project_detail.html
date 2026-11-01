@@ -40,7 +40,7 @@
   {% if not models %}
     <div class="flash" style="background:#fee4e2;border-color:#f2b8b5">No ONNX models found in the models folder. Add a <code>.onnx</code> file with a matching <code>.txt</code> class list, then refresh.</div>
   {% elif not current_model %}
-    <div class="flash" style="background:#fee4e2;border-color:#f2b8b5">This project's model could not be resolved. Edit the project to pick a model.</div>
+    <div class="flash" style="background:#fee4e2;border-color:#f2b8b5">This project's model <code>{{ project.model_folder }}</code> is not in the models folder, so it can't run. Add its files, or edit the project to pick one of the available models.</div>
   {% else %}
     <p class="muted">Active model: <code>{{ current_model.id }}</code>{% if current_model.pipeline == 'two_stage' %} · two-stage (detector + species classifier){% endif %}{% if current_model.num_classes %} · {{ current_model.num_classes }} species{% endif %} · <a href="{{ url_for('project_edit', project_id=project.id) }}">change</a></p>
   {% endif %}

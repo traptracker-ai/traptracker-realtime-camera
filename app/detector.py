@@ -134,6 +134,16 @@ def _parse_literal(value):
     return None
 
 
+def _meta_names(meta):
+    """Class names Ultralytics embeds in an export (`names` metadata), or []."""
+    names = _parse_literal(meta.get('names'))
+    if isinstance(names, dict):
+        return [str(names[k]) for k in sorted(names, key=int)]
+    if isinstance(names, list):
+        return [str(n) for n in names]
+    return []
+
+
 def _nms(boxes, scores, iou_thresh=0.45):
     """Pure-numpy NMS. boxes are x1,y1,x2,y2 in model space."""
     if len(boxes) == 0:
@@ -197,13 +207,21 @@ class OnnxDetector:
         self.input_name = inp.name
         meta = _metadata(self.session)
 
+        # A class list for a different model would silently put the wrong
+        # species names on every box, so check it against the names the model
+        # was trained with (when it carries them) and refuse a count mismatch.
         self.classes = load_classes(classes_path)
-        if not self.classes:
-            names = _parse_literal(meta.get('names'))
-            if isinstance(names, dict):
-                self.classes = [str(names[k]) for k in sorted(names, key=int)]
-            elif isinstance(names, list):
-                self.classes = [str(n) for n in names]
+        names = _meta_names(meta)
+        if self.classes and names:
+            if len(self.classes) != len(names):
+                raise ValueError(
+                    f'{Path(classes_path).name} lists {len(self.classes)} classes but '
+                    f'{Path(self.model_path).name} was trained with {len(names)}. It looks like the '
+                    f'class list of a different model; use the .txt that came with this model.')
+            if self.classes != names and log:
+                log(f'Note: {Path(classes_path).name} renames some of the classes embedded in '
+                    f'{Path(self.model_path).name}; using the .txt names.')
+        self.classes = self.classes or names
 
         size = int(input_size or 0)
         if size <= 0:
@@ -378,9 +396,9 @@ class CropClassifierONNX:
         else:
             self.classes = file_classes
         if n_out and self.classes and len(self.classes) != n_out:
-            self.warnings.append(
-                f'Classifier outputs {n_out} classes but {len(self.classes)} class names were found; '
-                'labels may be wrong.')
+            raise ValueError(
+                f'{name} outputs {n_out} classes but {len(self.classes)} class names were found. '
+                'The class list belongs to a different model; use the .txt that came with this classifier.')
 
         # Optional class_groups metadata: {label: detector class it belongs under}.
         # TwoStageDetector uses it to keep each box's label within its detector class.

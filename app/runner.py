@@ -63,6 +63,16 @@ class _ProjectWorker:
         else:
             self.status = 'stopped'
 
+    def _project_model_id(self):
+        s = Session()
+        try:
+            project = s.query(Project).get(self.project_id)
+            if project is None:
+                raise RuntimeError(f'Project {self.project_id} not found.')
+            return project.model_folder
+        finally:
+            s.close()
+
     def _load_model_and_loop(self):
         s = Session()
         try:
@@ -74,11 +84,39 @@ class _ProjectWorker:
         finally:
             s.close()
 
+        detector = self._load_detector(model_id)
+        self.status = 'running'
+
+        next_email = 0.0
+        next_inbound = 0.0
+        while not self._stop.is_set():
+            now = time.monotonic()
+            if now >= next_inbound:
+                # Pick up a model change made in the UI while running. Outside the
+                # try below on purpose: if the new model can't load, the runner
+                # stops with that error instead of carrying on with the old model.
+                current = self._project_model_id()
+                if current != model_id:
+                    self.log(f"Project model changed from '{model_id}' to '{current}'.")
+                    detector = self._load_detector(current)
+                    model_id = current
+            try:
+                if now >= next_email:
+                    self._poll_email_once()
+                    next_email = time.monotonic() + self._email_backoff_seconds()
+                if now >= next_inbound:
+                    self._process_inbound_once(detector)
+                    next_inbound = time.monotonic() + Config.POLL_INBOUND_SECONDS
+            except Exception as ex:
+                self.log(f'Runner loop error: {ex}')
+            self._stop.wait(Config.LOOP_DELAY_MS / 1000.0)
+
+    def _load_detector(self, model_id):
         model = model_registry.get_model(model_id)
         if model is None:
             raise RuntimeError(
-                f'No ONNX models found in {Config.MODEL_DIR}. '
-                f'Add a .onnx file (with a matching .txt class list).')
+                f"Model '{model_id}' is not in {Config.MODEL_DIR}. Add its .onnx (and .txt) "
+                f'files, or edit the project to pick one of the available models.')
         two_stage = model.get('pipeline') == 'two_stage'
         # A two-stage classifier normally embeds its class list, so its .txt is optional.
         if not two_stage and not model['classes_path']:
@@ -100,22 +138,7 @@ class _ProjectWorker:
                      f'{detector.classifier.input_size}px (crop padding {detector.classifier.crop_padding:g}).')
         self.log(f"Model loaded ({model['id']}). Provider: {', '.join(detector.providers)}. "
                  f'Labels: {len(detector.classes)}. Starting runner...')
-        self.status = 'running'
-
-        next_email = 0.0
-        next_inbound = 0.0
-        while not self._stop.is_set():
-            now = time.monotonic()
-            try:
-                if now >= next_email:
-                    self._poll_email_once()
-                    next_email = time.monotonic() + self._email_backoff_seconds()
-                if now >= next_inbound:
-                    self._process_inbound_once(detector)
-                    next_inbound = time.monotonic() + Config.POLL_INBOUND_SECONDS
-            except Exception as ex:
-                self.log(f'Runner loop error: {ex}')
-            self._stop.wait(Config.LOOP_DELAY_MS / 1000.0)
+        return detector
 
     # ------------------------------------------------------------------
     def _poll_email_once(self):

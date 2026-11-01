@@ -203,9 +203,14 @@ def project_edit(project_id):
             name = (request.form.get('name') or '').strip()
             if name:
                 p.name = name
+            old_model = p.model_folder
             p.model_folder = (request.form.get('model_folder') or p.model_folder).strip()
             s.commit()
-            flash('Project updated.')
+            if p.model_folder != old_model and manager.is_running(project_id):
+                flash(f"Project updated. Monitoring switches to '{p.model_folder}' within "
+                      f'{Config.POLL_INBOUND_SECONDS}s; watch the log for the model loading.')
+            else:
+                flash('Project updated.')
             return redirect(url_for('project_detail', project_id=project_id))
         return render_template('project_form.html', project=p,
                                models=model_registry.list_models())
@@ -441,7 +446,8 @@ def project_start(project_id):
             flash(f'No ONNX models found in {Config.MODEL_DIR}. Mount your model file(s) first.')
             return redirect(url_for('project_detail', project_id=project_id))
         if model_registry.get_model(p.model_folder) is None:
-            flash('No usable model found for this project. Check the models folder.')
+            flash(f"This project's model '{p.model_folder}' is not in the models folder. "
+                  'Add its files, or edit the project to pick another model.')
             return redirect(url_for('project_detail', project_id=project_id))
     finally:
         s.close()
@@ -562,9 +568,12 @@ def _resume_running_projects():
         s.close()
     for pid in ids:
         try:
-            if model_registry.get_model(_project_model_id(pid)) is not None:
+            model_id = _project_model_id(pid)
+            if model_registry.get_model(model_id) is not None:
                 manager.start(pid)
                 print(f'Resumed monitoring for project {pid}')
+            else:
+                print(f"Not resuming project {pid}: its model '{model_id}' is not in {Config.MODEL_DIR}")
         except Exception as ex:
             print(f'Could not resume project {pid}: {ex}')
 

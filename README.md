@@ -70,6 +70,13 @@ When a project is **started**, a background runner:
    `.txt`, and lets each project pick which model to use. The selected model's
    class list drives that project's species watch-list dropdown.
 
+   A project only ever runs the model it selected. If that model's files are
+   missing, monitoring won't start (no other model is substituted), and
+   changing a project's model while it is running switches the running
+   monitor over within one inbound poll. A class list whose number of classes
+   doesn't match the model's own embedded names is refused, so a model can't
+   run with another model's species names.
+
    Single-stage models are YOLO ONNX exports (YOLOv8/v10/11/26). End-to-end
    outputs (`[x1, y1, x2, y2, score, class_id]` rows) and raw grid outputs
    (NMS is applied in the app) both work. They run at `INPUT_SIZE` unless the
