@@ -127,7 +127,7 @@ When a project is **started**, a background runner:
    Check your driver/CUDA with `nvidia-smi`; if CUDA Version is 12.x the GPU
    build will work.
 
-3. Open **http://localhost:8501**, create a project (choosing its detection
+3. Open **http://localhost:8502**, create a project (choosing its detection
    model), add cameras, configure the email source, build the watch-list and
    recipients, then **Start monitoring**.
 

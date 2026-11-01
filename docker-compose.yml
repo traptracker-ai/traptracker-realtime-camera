@@ -9,9 +9,9 @@ services:
     container_name: traptracker-rt
     # Published on localhost ONLY. The UI holds email credentials and has no
     # login, so it must not be reachable from the network. To expose it on a
-    # trusted LAN, change to "0.0.0.0:8501:8501" AND understand the risk.
+    # trusted LAN, change to "0.0.0.0:8502:8501" AND understand the risk.
     ports:
-      - "127.0.0.1:8501:8501"
+      - "127.0.0.1:8502:8501"          # host port 8502, so it can run alongside the Offline Processor (8501)
     volumes:
       - ./models:/app/models          # your .onnx model(s) + matching .txt class lists
       - ./data:/app/data              # sqlite database + secret key (persistent)
