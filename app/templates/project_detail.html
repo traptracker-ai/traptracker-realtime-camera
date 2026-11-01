@@ -42,7 +42,7 @@
   {% elif not current_model %}
     <div class="flash" style="background:#fee4e2;border-color:#f2b8b5">This project's model could not be resolved. Edit the project to pick a model.</div>
   {% else %}
-    <p class="muted">Active model: <code>{{ current_model.id }}</code>{% if current_model.num_classes %} · {{ current_model.num_classes }} species{% endif %} · <a href="{{ url_for('project_edit', project_id=project.id) }}">change</a></p>
+    <p class="muted">Active model: <code>{{ current_model.id }}</code>{% if current_model.pipeline == 'two_stage' %} · two-stage (detector + species classifier){% endif %}{% if current_model.num_classes %} · {{ current_model.num_classes }} species{% endif %} · <a href="{{ url_for('project_edit', project_id=project.id) }}">change</a></p>
   {% endif %}
   <div class="logbox" id="logbox">Logs will appear here when monitoring starts…</div>
 </div>

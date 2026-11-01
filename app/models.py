@@ -123,6 +123,10 @@ class Detection(Base):
     y1 = Column(Float, default=0.0)
     x2 = Column(Float, default=0.0)
     y2 = Column(Float, default=0.0)
+    # Two-stage models only: stage 1's own label/score (e.g. 'animal' 0.91)
+    # before the classifier assigned the species. NULL for single-stage.
+    detector_label = Column(String(200), nullable=True)
+    detector_confidence = Column(Float, nullable=True)
     created_at_utc = Column(DateTime, default=datetime.utcnow)
 
     image = relationship('ImageItem', back_populates='detections')
@@ -174,6 +178,7 @@ def _run_lightweight_migrations(engine):
     from sqlalchemy import text
     wanted = {
         'projects': [('desired_running', 'BOOLEAN DEFAULT 0')],
+        'detections': [('detector_label', 'VARCHAR(200)'), ('detector_confidence', 'FLOAT')],
     }
     with engine.begin() as conn:
         for table, cols in wanted.items():

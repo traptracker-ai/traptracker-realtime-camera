@@ -70,9 +70,28 @@ When a project is **started**, a background runner:
    `.txt`, and lets each project pick which model to use. The selected model's
    class list drives that project's species watch-list dropdown.
 
-   Models are expected to output rows of `[x1, y1, x2, y2, score, class_id]`
-   in letterboxed 640×640 input space (the YOLO26 end-to-end export). If your
-   input size differs, set `INPUT_SIZE`.
+   Single-stage models are YOLO ONNX exports (YOLOv8/v10/11/26). End-to-end
+   outputs (`[x1, y1, x2, y2, score, class_id]` rows) and raw grid outputs
+   (NMS is applied in the app) both work. They run at `INPUT_SIZE` unless the
+   model has a fixed input shape.
+
+   **Two-stage models (DeepFaune).** A detector such as MegaDetector v6 finds
+   the animals, people and vehicles, then a DeepFaune species classifier labels
+   each animal crop. Put the pair in `models/two-stage-detectors/`:
+
+   ```
+   models/two-stage-detectors/deepfaune_ssa_v1.2_stage1_detector.onnx
+   models/two-stage-detectors/deepfaune_ssa_v1.2_stage2_classifier.onnx
+   models/two-stage-detectors/deepfaune_ssa_v1.2_stage2_classifier.txt
+   ```
+
+   It shows up as one model, `deepfaune_ssa_v1.2 (two-stage)`. The detector
+   runs at the size it was trained at (1280 px for MegaDetector v6, read from
+   the model), not `INPUT_SIZE`. The classifier's crop size, normalisation,
+   crop padding and class list come from its ONNX metadata (see
+   [`models/README.md`](models/README.md)). Person and vehicle boxes keep the
+   detector's label, so `person` and `vehicle` can also go on a watch-list.
+   The reported confidence is the classifier's species probability.
 
 2. **Run it.**
 
@@ -121,7 +140,7 @@ Image attachments (`.jpg .jpeg .png .bmp .tif .tiff`) are extracted.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `MODEL_DIR` | `/app/models` | Folder scanned for `.onnx` models + `.txt` class lists |
-| `INPUT_SIZE` | `640` | Model input size |
+| `INPUT_SIZE` | `640` | Single-stage model input size (two-stage detectors use their own training size) |
 | `CONF_THRESHOLD` | `0.10` | Detector confidence floor |
 | `ORT_PROVIDERS` | `CPUExecutionProvider` (default build) / `CUDAExecutionProvider,CPUExecutionProvider` (GPU build) | ONNX Runtime providers to try, in order. GPU is attempted first then falls back to CPU |
 | `POLL_EMAIL_SECONDS` | `30` | Mailbox poll interval |

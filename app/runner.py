@@ -79,18 +79,25 @@ class _ProjectWorker:
             raise RuntimeError(
                 f'No ONNX models found in {Config.MODEL_DIR}. '
                 f'Add a .onnx file (with a matching .txt class list).')
-        if not model['classes_path']:
+        two_stage = model.get('pipeline') == 'two_stage'
+        # A two-stage classifier normally embeds its class list, so its .txt is optional.
+        if not two_stage and not model['classes_path']:
             raise RuntimeError(
                 f"Model '{model['id']}' has no class list. Add "
                 f"{model['id']}.txt next to the .onnx file.")
 
-        self.log(f"Loading model: {model['id']} ...")
+        self.log(f"Loading {'two-stage ' if two_stage else ''}model: {model['id']} ...")
         detector = get_detector(
             model['onnx_path'], model['classes_path'],
             providers=Config.ORT_PROVIDERS,
             input_size=Config.INPUT_SIZE, conf=Config.CONF_THRESHOLD,
             log=self.log,
+            classifier_path=model.get('classifier_path'),
+            classifier_classes_path=model['classes_path'] if two_stage else None,
         )
+        if two_stage:
+            self.log(f'Stage 1 detector at {detector.input_size}px, stage 2 classifier at '
+                     f'{detector.classifier.input_size}px (crop padding {detector.classifier.crop_padding:g}).')
         self.log(f"Model loaded ({model['id']}). Provider: {', '.join(detector.providers)}. "
                  f'Labels: {len(detector.classes)}. Starting runner...')
         self.status = 'running'
@@ -219,6 +226,8 @@ class _ProjectWorker:
                 s.add(Detection(
                     image_item_id=item.id, label=d['species'], confidence=d['confidence'],
                     x1=d['x1'], y1=d['y1'], x2=d['x2'], y2=d['y2'],
+                    detector_label=d.get('detector_class'),
+                    detector_confidence=d.get('detector_confidence'),
                 ))
             item.processed_at_utc = datetime.utcnow()
             s.commit()
