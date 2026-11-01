@@ -6,15 +6,16 @@ Expected layout:
 
 ```text
 models/
-  your-model.onnx
-  your-model.txt
+  single-stage-detectors/
+    your-model.onnx
+    your-model.txt
   two-stage-detectors/
     <name>_stage1_detector.onnx
     <name>_stage2_classifier.onnx
     <name>_stage2_classifier.txt
 ```
 
-The `.txt` file should use the same base name as the `.onnx` file and contain one class name per line.
+The `.txt` file should use the same base name as the `.onnx` file and contain one class name per line. Single-stage models placed directly in `models/` are still found, so older setups keep working. This is the same layout as the Trap Tracker Offline Processor, so one models folder can be copied between the two apps.
 
 A two-stage model (e.g. DeepFaune: MegaDetector v6 + a species classifier) is a `_stage1_detector.onnx` / `_stage2_classifier.onnx` pair with the same `<name>`, listed in the app as one model called `<name>`. The classifier's `.txt` is optional when the class list is embedded in the ONNX.
 
