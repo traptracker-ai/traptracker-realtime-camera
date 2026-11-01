@@ -66,6 +66,19 @@ dropdown when you build a watch-list.
 You can add several models (e.g. UK mammals and African mammals) — each project
 picks which one to use.
 
+**Two-stage DeepFaune models.** These come as a pair: a detector
+(MegaDetector) that finds each animal, and a classifier that names the
+species. Put both files, plus the class list, in `models/two-stage-detectors/`:
+
+```
+models/two-stage-detectors/deepfaune_ssa_v1.2_stage1_detector.onnx
+models/two-stage-detectors/deepfaune_ssa_v1.2_stage2_classifier.onnx
+models/two-stage-detectors/deepfaune_ssa_v1.2_stage2_classifier.txt
+```
+
+The pair appears in the model list as one model, marked *two-stage*. Its
+watch-list dropdown has every species plus `person` and `vehicle`.
+
 ---
 
 ## Step 2 — Start the app

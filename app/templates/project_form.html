@@ -14,7 +14,7 @@
       <select name="model_folder" required>
         {% for m in models %}
           <option value="{{ m.id }}" {{ 'selected' if project and project.model_folder == m.id else '' }}>
-            {{ m.id }}{% if m.num_classes %} ({{ m.num_classes }} species){% endif %}
+            {{ m.id }}{% if m.pipeline == 'two_stage' %} (two-stage{% if m.num_classes %}, {{ m.num_classes }} species{% endif %}){% elif m.num_classes %} ({{ m.num_classes }} species){% endif %}
           </option>
         {% endfor %}
       </select>

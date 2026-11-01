@@ -63,6 +63,16 @@ class _ProjectWorker:
         else:
             self.status = 'stopped'
 
+    def _project_model_id(self):
+        s = Session()
+        try:
+            project = s.query(Project).get(self.project_id)
+            if project is None:
+                raise RuntimeError(f'Project {self.project_id} not found.')
+            return project.model_folder
+        finally:
+            s.close()
+
     def _load_model_and_loop(self):
         s = Session()
         try:
@@ -74,31 +84,22 @@ class _ProjectWorker:
         finally:
             s.close()
 
-        model = model_registry.get_model(model_id)
-        if model is None:
-            raise RuntimeError(
-                f'No ONNX models found in {Config.MODEL_DIR}. '
-                f'Add a .onnx file (with a matching .txt class list).')
-        if not model['classes_path']:
-            raise RuntimeError(
-                f"Model '{model['id']}' has no class list. Add "
-                f"{model['id']}.txt next to the .onnx file.")
-
-        self.log(f"Loading model: {model['id']} ...")
-        detector = get_detector(
-            model['onnx_path'], model['classes_path'],
-            providers=Config.ORT_PROVIDERS,
-            input_size=Config.INPUT_SIZE, conf=Config.CONF_THRESHOLD,
-            log=self.log,
-        )
-        self.log(f"Model loaded ({model['id']}). Provider: {', '.join(detector.providers)}. "
-                 f'Labels: {len(detector.classes)}. Starting runner...')
+        detector = self._load_detector(model_id)
         self.status = 'running'
 
         next_email = 0.0
         next_inbound = 0.0
         while not self._stop.is_set():
             now = time.monotonic()
+            if now >= next_inbound:
+                # Pick up a model change made in the UI while running. Outside the
+                # try below on purpose: if the new model can't load, the runner
+                # stops with that error instead of carrying on with the old model.
+                current = self._project_model_id()
+                if current != model_id:
+                    self.log(f"Project model changed from '{model_id}' to '{current}'.")
+                    detector = self._load_detector(current)
+                    model_id = current
             try:
                 if now >= next_email:
                     self._poll_email_once()
@@ -109,6 +110,35 @@ class _ProjectWorker:
             except Exception as ex:
                 self.log(f'Runner loop error: {ex}')
             self._stop.wait(Config.LOOP_DELAY_MS / 1000.0)
+
+    def _load_detector(self, model_id):
+        model = model_registry.get_model(model_id)
+        if model is None:
+            raise RuntimeError(
+                f"Model '{model_id}' is not in {Config.MODEL_DIR}. Add its .onnx (and .txt) "
+                f'files, or edit the project to pick one of the available models.')
+        two_stage = model.get('pipeline') == 'two_stage'
+        # A two-stage classifier normally embeds its class list, so its .txt is optional.
+        if not two_stage and not model['classes_path']:
+            raise RuntimeError(
+                f"Model '{model['id']}' has no class list. Add "
+                f"{model['id']}.txt next to the .onnx file.")
+
+        self.log(f"Loading {'two-stage ' if two_stage else ''}model: {model['id']} ...")
+        detector = get_detector(
+            model['onnx_path'], model['classes_path'],
+            providers=Config.ORT_PROVIDERS,
+            input_size=Config.INPUT_SIZE, conf=Config.CONF_THRESHOLD,
+            log=self.log,
+            classifier_path=model.get('classifier_path'),
+            classifier_classes_path=model['classes_path'] if two_stage else None,
+        )
+        if two_stage:
+            self.log(f'Stage 1 detector at {detector.input_size}px, stage 2 classifier at '
+                     f'{detector.classifier.input_size}px (crop padding {detector.classifier.crop_padding:g}).')
+        self.log(f"Model loaded ({model['id']}). Provider: {', '.join(detector.providers)}. "
+                 f'Labels: {len(detector.classes)}. Starting runner...')
+        return detector
 
     # ------------------------------------------------------------------
     def _poll_email_once(self):
@@ -219,6 +249,8 @@ class _ProjectWorker:
                 s.add(Detection(
                     image_item_id=item.id, label=d['species'], confidence=d['confidence'],
                     x1=d['x1'], y1=d['y1'], x2=d['x2'], y2=d['y2'],
+                    detector_label=d.get('detector_class'),
+                    detector_confidence=d.get('detector_confidence'),
                 ))
             item.processed_at_utc = datetime.utcnow()
             s.commit()
