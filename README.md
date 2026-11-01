@@ -2,6 +2,8 @@
 
 Trap Tracker Real-Time Camera App is a Docker-based web application for real-time camera trap ingestion, AI-assisted detection and alerting. It is designed for conservationists, researchers and biodiversity practitioners who need to process incoming camera trap images and generate species-based alerts.
 
+It runs two kinds of model: single-stage YOLO detectors that find and name species in one pass, and two-stage DeepFaune pipelines, where MegaDetector v6 finds each animal and a DeepFaune species classifier names it (for example DeepFaune-UK and DeepFaune-SSA, published on Zenodo). Each project picks its model from one dropdown.
+
 ## Use and licensing
 
 This tool is free to use for non-commercial conservation, ecological research, biodiversity monitoring, academic research and education.
