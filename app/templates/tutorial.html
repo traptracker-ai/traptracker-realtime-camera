@@ -33,7 +33,7 @@
   <p>The GPU build needs an NVIDIA GPU, current drivers, and the NVIDIA Container
   Toolkit on the host. Either way, the app tries the GPU first and
   <b>falls back to CPU automatically</b> if it can't be used, noting the reason in
-  the monitoring log. Then open <code>http://localhost:8501</code>. You can see
+  the monitoring log. Then open <code>http://localhost:8502</code>. You can see
   whether it's on GPU or CPU in the <b>System Status</b> box in the sidebar.</p>
   <div class="hint">
     <b>GPU compatibility.</b> Tested on NVIDIA RTX A6000 · Driver 573.73 · CUDA 12.8.
@@ -99,7 +99,7 @@
   an NVIDIA GPU, current drivers, and the NVIDIA Container Toolkit on the host. If
   you don't have all three, use the default CPU build. A running GPU build also
   falls back to CPU automatically and logs why.</p>
-  <p><b>Port 8501 already in use:</b> change the published port in the compose
+  <p><b>Port 8502 already in use:</b> change the published port in the compose
   file (e.g. <code>127.0.0.1:8600:8501</code>) and open
   <code>http://localhost:8600</code>.</p>
   <p><b>"Alert sent" but no email:</b> check Spam / All Mail in the recipient inbox;

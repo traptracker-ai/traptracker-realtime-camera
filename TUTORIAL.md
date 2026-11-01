@@ -141,7 +141,7 @@ Detection continues either way; you never get a hard crash over GPU issues.
 
 You can see what it's using in two places:
 - The **System Status** box in the sidebar shows **Compute: GPU** or **CPU**.
-- The endpoint **http://localhost:8501/healthz** reports the active provider and
+- The endpoint **http://localhost:8502/healthz** reports the active provider and
   any fallback message.
 
 ### When it's ready
@@ -154,7 +154,7 @@ Models found: 2
 ============================================================
 ```
 
-Open **http://localhost:8501** in your browser.
+Open **http://localhost:8502** in your browser.
 
 ---
 
@@ -328,10 +328,10 @@ recent enough for CUDA 12.x (driver >= 525); check with `nvidia-smi`.
 
 **It built but I'm not sure if it's using the GPU**
 Check the **System Status** box in the sidebar (Compute: GPU / CPU) or open
-**http://localhost:8501/healthz**. The monitoring log also states which it's
+**http://localhost:8502/healthz**. The monitoring log also states which it's
 using when a project starts.
 
-**Port 8501 already in use**
+**Port 8502 already in use**
 Another program (or a previous container) is using the port. Stop the other
 process, or change the published port in the compose file (e.g.
 `"127.0.0.1:8600:8501"`) and open `http://localhost:8600`.
@@ -360,7 +360,7 @@ ignored by design.
 
 **Models not showing**
 Make sure each `.onnx` has a `.txt` of the same base name in `models/`, then
-refresh. Visit **http://localhost:8501/healthz** to see what the app detects.
+refresh. Visit **http://localhost:8502/healthz** to see what the app detects.
 
 **Monitoring stopped after a restart**
 Projects that were running resume automatically on startup. If one didn't, open
