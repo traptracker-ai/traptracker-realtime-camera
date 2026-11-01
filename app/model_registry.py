@@ -1,12 +1,12 @@
 """
 Model discovery.
 
-Scans MODEL_DIR for ONNX models. A single-stage model is `<name>.onnx`;
-its class list is the file with the same base name and a `.txt` (or
-`.json`) extension, e.g.:
+Scans MODEL_DIR for ONNX models. A single-stage model is `<name>.onnx` in
+MODEL_DIR/single-stage-detectors/ (or MODEL_DIR itself); its class list is
+the file with the same base name and a `.txt` (or `.json`) extension, e.g.:
 
-    traptracker_uk_mammals_yolo26x_v1.0.0.onnx
-    traptracker_uk_mammals_yolo26x_v1.0.0.txt
+    single-stage-detectors/cai_uk_mammals_yolo26x_v1.0.0.onnx
+    single-stage-detectors/cai_uk_mammals_yolo26x_v1.0.0.txt
 
 A two-stage model (e.g. MegaDetector + a DeepFaune species classifier) is a
 pair in MODEL_DIR/two-stage-detectors/ (or MODEL_DIR itself):
@@ -26,6 +26,7 @@ import os
 
 from .config import Config
 
+SINGLE_STAGE_DIR = 'single-stage-detectors'
 TWO_STAGE_DIR = 'two-stage-detectors'
 STAGE1_SUFFIX = '_stage1_detector.onnx'
 STAGE2_SUFFIX = '_stage2_classifier.onnx'
@@ -74,21 +75,28 @@ def list_models():
     model_dir = Config.MODEL_DIR
     if not os.path.isdir(model_dir):
         return out
-    for fn in sorted(os.listdir(model_dir)):
-        low = fn.lower()
-        if not low.endswith('.onnx') or low.endswith((STAGE1_SUFFIX, STAGE2_SUFFIX)):
+    seen = set()
+    # Same layout as the Offline Processor; top-level models are still accepted.
+    for d in (os.path.join(model_dir, SINGLE_STAGE_DIR), model_dir):
+        if not os.path.isdir(d):
             continue
-        onnx_path = os.path.join(model_dir, fn)
-        model_id = os.path.splitext(fn)[0]
-        classes_path = _classes_path_for(onnx_path)
-        out.append({
-            'id': model_id,
-            'pipeline': 'single_stage',
-            'onnx_path': onnx_path,
-            'classes_path': classes_path,
-            'num_classes': len(_read_classes(classes_path)) if classes_path else 0,
-        })
-    seen = {m['id'] for m in out}
+        for fn in sorted(os.listdir(d)):
+            low = fn.lower()
+            if not low.endswith('.onnx') or low.endswith((STAGE1_SUFFIX, STAGE2_SUFFIX)):
+                continue
+            model_id = os.path.splitext(fn)[0]
+            if model_id in seen:
+                continue
+            seen.add(model_id)
+            onnx_path = os.path.join(d, fn)
+            classes_path = _classes_path_for(onnx_path)
+            out.append({
+                'id': model_id,
+                'pipeline': 'single_stage',
+                'onnx_path': onnx_path,
+                'classes_path': classes_path,
+                'num_classes': len(_read_classes(classes_path)) if classes_path else 0,
+            })
     for m in _list_two_stage(model_dir):
         if m['id'] not in seen:
             seen.add(m['id'])

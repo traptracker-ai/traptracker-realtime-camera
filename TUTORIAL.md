@@ -52,12 +52,12 @@ speeds things up — see Step 2.
 
 ## Step 1 — Add your model(s)
 
-Put your model files in the `models/` folder. Each model is a `.onnx` file with
-a `.txt` class list of the **same name**:
+Put your model files in the `models/single-stage-detectors/` folder. Each model
+is a `.onnx` file with a `.txt` class list of the **same name**:
 
 ```
-models/traptracker_uk_mammals_yolo26x_v1.0.0.onnx
-models/traptracker_uk_mammals_yolo26x_v1.0.0.txt
+models/single-stage-detectors/cai_uk_mammals_yolo26x_v1.0.0.onnx
+models/single-stage-detectors/cai_uk_mammals_yolo26x_v1.0.0.txt
 ```
 
 The `.txt` file lists one species per line. This list becomes the species

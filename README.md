@@ -55,18 +55,20 @@ When a project is **started**, a background runner:
 
 ## Setup
 
-1. **Add your model(s).** Drop your plain (unencrypted) ONNX model(s) into
-   `models/`. Each model must have a class list with the **same base name** and
-   a `.txt` extension (one class per line). For example:
+1. **Add your model(s).** Drop your plain (unencrypted) single-stage ONNX
+   model(s) into `models/single-stage-detectors/` (the same layout as the
+   Trap Tracker Offline Processor; models directly in `models/` also work).
+   Each model must have a class list with the **same base name** and a `.txt`
+   extension (one class per line). For example:
 
    ```
-   models/traptracker_uk_mammals_yolo26x_v1.0.0.onnx
-   models/traptracker_uk_mammals_yolo26x_v1.0.0.txt
-   models/traptracker_subsaharan_africa_mammals_yolo26x_v1.0.0.onnx
-   models/traptracker_subsaharan_africa_mammals_yolo26x_v1.0.0.txt
+   models/single-stage-detectors/cai_uk_mammals_yolo26x_v1.0.0.onnx
+   models/single-stage-detectors/cai_uk_mammals_yolo26x_v1.0.0.txt
+   models/single-stage-detectors/cai_subsaharan_africa_mammals_yolo26x_v1.0.0.onnx
+   models/single-stage-detectors/cai_subsaharan_africa_mammals_yolo26x_v1.0.0.txt
    ```
 
-   The app auto-discovers every `.onnx` in `models/`, pairs it with its
+   The app auto-discovers every `.onnx`, pairs it with its
    `.txt`, and lets each project pick which model to use. The selected model's
    class list drives that project's species watch-list dropdown.
 
