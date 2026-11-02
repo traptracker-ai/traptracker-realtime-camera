@@ -72,6 +72,13 @@ class Config:
     POLL_EMAIL_SECONDS = _int('POLL_EMAIL_SECONDS', 30)
     POLL_INBOUND_SECONDS = _int('POLL_INBOUND_SECONDS', 10)
     LOOP_DELAY_MS = _int('LOOP_DELAY_MS', 500)
+    # Files written into Inbound/ by FTP/SFTP or a synced folder can still be
+    # uploading when the runner scans. A file is only processed once it hasn't
+    # changed for INBOUND_SETTLE_SECONDS and (JPEGs) ends with the end-of-image
+    # marker; a JPEG still missing it after INBOUND_STALE_SECONDS is processed
+    # anyway so a broken upload can't sit in Inbound/ forever.
+    INBOUND_SETTLE_SECONDS = _float('INBOUND_SETTLE_SECONDS', 5)
+    INBOUND_STALE_SECONDS = _float('INBOUND_STALE_SECONDS', 300)
 
     # ---- Web ----
     # Binds to localhost by default so the credential-bearing UI is not

@@ -146,6 +146,38 @@ Trail camera motion (=Camera01=)
 `Camera01` must match a camera's **Name** or **Routing key** (case-insensitive).
 Image attachments (`.jpg .jpeg .png .bmp .tif .tiff`) are extracted.
 
+## Keeping images on site (FTP/SFTP ingest, local alerts)
+
+With a cloud mailbox such as Gmail, every camera image passes through the mail
+provider's servers before it reaches this app, and alerts go out the same way.
+Where images must not leave the site or the country (people in frame, the
+locations of high-value species, national data-protection law), use local
+ingest instead:
+
+1. **Images in.** Every running project processes any image that appears in
+   `projects/<id>_<name>/Inbound/<Camera>/`, however it got there. The
+   subfolder name becomes the camera name. Run an FTP/FTPS or SFTP server on the
+   same machine (or network share) that writes each camera's uploads into its own
+   folder, and point the cameras' FTP upload settings at it. Most 4G camera
+   traps support FTP upload.
+   - Untick **Pull camera images from this mailbox** in the project's Email
+     Source. Monitoring then starts without a mailbox and watches `Inbound/` only.
+   - Half-uploaded files are left alone. A file is processed only once it hasn't
+     changed for `INBOUND_SETTLE_SECONDS` and, for a JPEG, its end-of-image
+     marker has arrived. A JPEG that never completes is processed anyway after
+     `INBOUND_STALE_SECONDS`, so a broken upload can't sit in `Inbound/` forever.
+   - Give each camera its own FTP user, locked to its folder. Prefer FTPS/SFTP
+     where the camera supports it. A camera on a public 4G network has to reach
+     the server, so use a private APN, a VPN, or a single forwarded port with
+     strong passwords. Never expose this web app itself.
+2. **Alerts out.** Set the SMTP server to a mail relay on your own network
+   (e.g. Postfix on the reserve's server, delivering to staff mailboxes or an
+   SMS gateway), with **SMTP security** set to *None (relay on your local
+   network)*. Leave the password empty if the relay doesn't require a login.
+
+The email setup stays the quickest way to start; local ingest is for sites
+where data sovereignty matters more than convenience.
+
 ## Configuration (environment variables)
 
 | Variable | Default | Purpose |
@@ -156,6 +188,8 @@ Image attachments (`.jpg .jpeg .png .bmp .tif .tiff`) are extracted.
 | `ORT_PROVIDERS` | `CPUExecutionProvider` (default build) / `CUDAExecutionProvider,CPUExecutionProvider` (GPU build) | ONNX Runtime providers to try, in order. GPU is attempted first then falls back to CPU |
 | `POLL_EMAIL_SECONDS` | `30` | Mailbox poll interval |
 | `POLL_INBOUND_SECONDS` | `10` | Inbound scan interval |
+| `INBOUND_SETTLE_SECONDS` | `5` | A file in `Inbound/` must be unchanged this long before it's processed (protects uploads in progress) |
+| `INBOUND_STALE_SECONDS` | `300` | A JPEG still missing its end marker after this long is processed anyway |
 | `HOST` | `127.0.0.1` | Bind address (localhost by default; the container sets `0.0.0.0` internally and the compose port mapping restricts host exposure to localhost) |
 | `PORT` | `8501` | Web port |
 | `SECRET_KEY` | *(auto-generated)* | Flask session key. If unset, a random key is generated and persisted to `data/.secret_key` |

@@ -213,6 +213,7 @@ In the **Email Source** section, enter:
 
 | Field | Value (Gmail) |
 | --- | --- |
+| Pull camera images from this mailbox (IMAP) | ✓ ticked |
 | Email address | your camera Gmail address |
 | App password | the 16-character app password from Step 3 |
 | IMAP host | `imap.gmail.com` |
@@ -220,7 +221,13 @@ In the **Email Source** section, enter:
 | Use SSL for IMAP | ✓ ticked |
 | SMTP host | `smtp.gmail.com` |
 | SMTP port | `587` |
-| Use STARTTLS for SMTP | ✓ ticked |
+| SMTP security | STARTTLS |
+
+> **Images must stay on site?** Skip the mailbox. Untick **Pull camera images
+> from this mailbox**, have the cameras upload by FTP/SFTP into the project's
+> `Inbound/<Camera>/` folder, and send alerts through a mail relay on your own
+> network (**SMTP security: None**, password left empty if the relay needs no
+> login). See "Keeping images on site" in the README.
 
 Click **Save email settings**.
 
@@ -370,8 +377,12 @@ it and click **Start monitoring** again.
 
 ## Data & privacy
 
-- All data stays on your machine: the SQLite database in `data/`, images in
-  `projects/`, models in `models/`.
+- Processing and storage happen on your machine: the SQLite database in
+  `data/`, images in `projects/`, models in `models/`. No image is sent to a
+  processing server.
+- Images do pass through your email provider on the way in when cameras send
+  them by email (e.g. Gmail), and alert images go out the same way. To keep
+  everything on site, use FTP/SFTP ingest and a local mail relay (Step 6).
 - Email app passwords are stored in the local database in plain text. This is
   acceptable for a localhost-only deployment; do not expose the app to a network
   or share your `data/` folder.

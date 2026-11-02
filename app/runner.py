@@ -147,7 +147,10 @@ class _ProjectWorker:
             project = s.query(Project).get(self.project_id)
             if project is None:
                 return
-            _ = project.email_settings  # load
+            settings = project.email_settings
+            if settings is None or not settings.imap_ready:
+                # No mailbox: images arrive in Inbound/ some other way (FTP/SFTP, synced folder).
+                return
             cameras = s.query(Camera).filter_by(project_id=self.project_id, is_enabled=True).all()
             downloaded = gmail_ingest.pull_new_images(project, cameras, log=self.log, delete_emails=True)
             if downloaded > 0:
@@ -183,14 +186,18 @@ class _ProjectWorker:
         finally:
             s.close()
 
-        # Enumerate ready inbound images.
+        # Enumerate ready inbound images (skipping any still being uploaded).
         files = []
         for root, _dirs, names in os.walk(inbound):
             for n in names:
                 if os.path.splitext(n)[1].lower() in IMAGE_EXTS:
                     p = os.path.join(root, n)
-                    if _file_ready(p):
+                    ready = _file_ready(p)
+                    if ready:
                         files.append(p)
+                        if ready == 'stale':
+                            self.log(f"'{n}' has no JPEG end marker but hasn't changed for "
+                                     f'{Config.INBOUND_STALE_SECONDS:g}s; processing it anyway.')
         if not files:
             return
 
@@ -309,8 +316,35 @@ class _ProjectWorker:
 
 
 def _file_ready(path):
+    """True once a file in Inbound/ has finished arriving, 'stale' for a JPEG that
+    stopped changing long ago without ever completing, else False.
+
+    Email attachments are written whole, but FTP/SFTP uploads over a weak 4G
+    link grow for many seconds; reading one early gives a truncated image that
+    decodes to grey and silently produces no detections. A file counts as
+    finished once it hasn't been modified for INBOUND_SETTLE_SECONDS and, for
+    JPEGs, ends with the end-of-image marker (FF D9).
+    """
     try:
-        return os.path.getsize(path) > 0
+        st = os.stat(path)
+    except OSError:
+        return False
+    if st.st_size == 0:
+        return False
+    age = time.time() - st.st_mtime
+    if age < Config.INBOUND_SETTLE_SECONDS:
+        return False
+    if os.path.splitext(path)[1].lower() in ('.jpg', '.jpeg') and not _jpeg_complete(path, st.st_size):
+        return 'stale' if age >= Config.INBOUND_STALE_SECONDS else False
+    return True
+
+
+def _jpeg_complete(path, size):
+    # Some cameras pad after the marker, so look in the last few KB, not the last 2 bytes.
+    try:
+        with open(path, 'rb') as fh:
+            fh.seek(max(0, size - 4096))
+            return b'\xff\xd9' in fh.read()
     except OSError:
         return False
 
