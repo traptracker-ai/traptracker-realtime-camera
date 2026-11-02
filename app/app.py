@@ -311,11 +311,16 @@ def email_settings_save(project_id):
         settings.use_ssl = request.form.get('use_ssl') == 'on'
         settings.smtp_host = (request.form.get('smtp_host') or 'smtp.gmail.com').strip()
         settings.smtp_port = int(request.form.get('smtp_port') or 587)
-        settings.smtp_starttls = request.form.get('smtp_starttls') == 'on'
+        security = request.form.get('smtp_security') or 'starttls'
+        settings.smtp_security = security if security in ('starttls', 'ssl', 'none') else 'starttls'
+        settings.smtp_starttls = settings.smtp_security == 'starttls'  # kept in step for older code
+        settings.imap_enabled = request.form.get('imap_enabled') == 'on'
         settings.email_address = (request.form.get('email_address') or '').strip()
         pw = request.form.get('app_password') or ''
         if pw.strip():  # only overwrite when provided
             settings.app_password = pw
+        elif request.form.get('clear_password') == 'on':  # e.g. a local relay with no login
+            settings.app_password = ''
         settings.search_query = (request.form.get('search_query') or '').strip()
         s.commit()
         flash('Email settings saved.')
@@ -329,8 +334,8 @@ def email_settings_test(project_id):
     s = Session()
     try:
         settings = s.query(ProjectEmailSettings).filter_by(project_id=project_id).first()
-        if not settings or not settings.email_address or not settings.app_password:
-            flash('Configure and save email settings first.')
+        if not settings or not settings.smtp_ready:
+            flash('Configure and save the SMTP server and email address first.')
             return redirect(url_for('project_detail', project_id=project_id) + '#email')
         to = (request.form.get('test_to') or settings.email_address).strip()
         try:
@@ -438,10 +443,15 @@ def project_start(project_id):
         p = s.query(Project).get(project_id)
         if not p:
             abort(404)
+        # A mailbox is optional: without one, the runner only processes images
+        # placed in Inbound/ by other means (FTP/SFTP, a synced folder).
         settings = p.email_settings
-        if not settings or not settings.email_address or not settings.app_password:
-            flash('Configure email settings before starting monitoring.')
-            return redirect(url_for('project_detail', project_id=project_id))
+        mailbox = bool(settings and settings.imap_ready)
+        if settings and settings.imap_enabled is not False and not mailbox and (
+                settings.email_address or settings.app_password):
+            flash('Mailbox ingest is on but the email address or password is missing. Fill them in, '
+                  'or untick "Pull camera images from this mailbox" to use FTP/folder ingest only.')
+            return redirect(url_for('project_detail', project_id=project_id) + '#email')
         if not os.path.exists(Config.MODEL_PATH) and not model_registry.list_models():
             flash(f'No ONNX models found in {Config.MODEL_DIR}. Mount your model file(s) first.')
             return redirect(url_for('project_detail', project_id=project_id))
@@ -453,7 +463,8 @@ def project_start(project_id):
         s.close()
     if manager.start(project_id):
         _set_desired_running(project_id, True)
-        flash('Monitoring started.')
+        flash('Monitoring started.' if mailbox else
+              'Monitoring started (no mailbox: watching the Inbound folder only, e.g. for FTP uploads).')
     else:
         flash('Monitoring is already running.')
     return _redirect_back(project_id)

@@ -60,7 +60,7 @@ def evaluate_and_send(project_id, image_item_id, dets, original_path, boxed_path
             return
 
         email_settings = s.query(ProjectEmailSettings).filter_by(project_id=project_id).first()
-        if email_settings is None or not email_settings.email_address or not email_settings.app_password:
+        if email_settings is None or not email_settings.smtp_ready:
             _log('Alerting: project email settings missing (cannot send).')
             return
 
@@ -151,26 +151,28 @@ def _send_email(settings, to_addresses, subject, body, attach_paths):
 
     host = settings.smtp_host or 'smtp.gmail.com'
     port = settings.smtp_port or 587
-    starttls = settings.smtp_starttls if settings.smtp_starttls is not None else True
 
-    refused = _smtp_deliver(host, port, starttls, settings, msg)
+    refused = _smtp_deliver(host, port, settings.smtp_mode, settings, msg)
     if refused:
         raise RuntimeError(f'SMTP accepted connection but refused recipients: {refused}')
 
 
-def _smtp_deliver(host, port, starttls, settings, msg):
-    """Send and return the dict of refused recipients (empty if all accepted)."""
-    if starttls:
-        with smtplib.SMTP(host, port, timeout=20) as smtp:
+def _smtp_deliver(host, port, mode, settings, msg):
+    """Send and return the dict of refused recipients (empty if all accepted).
+
+    mode is 'starttls', 'ssl' or 'none' (plain SMTP, for a relay on the local
+    network). Login is skipped when no password is set, as an internal relay
+    usually accepts mail from the LAN without authentication.
+    """
+    smtp_cls = smtplib.SMTP_SSL if mode == 'ssl' else smtplib.SMTP
+    with smtp_cls(host, port, timeout=20) as smtp:
+        if mode == 'starttls':
             smtp.ehlo()
             smtp.starttls()
             smtp.ehlo()
+        if settings.app_password:
             smtp.login(settings.email_address.strip(), settings.app_password)
-            return smtp.send_message(msg)
-    else:
-        with smtplib.SMTP_SSL(host, port, timeout=20) as smtp:
-            smtp.login(settings.email_address.strip(), settings.app_password)
-            return smtp.send_message(msg)
+        return smtp.send_message(msg)
 
 
 def send_test_email(settings, to_address, log=None):
@@ -182,7 +184,6 @@ def send_test_email(settings, to_address, log=None):
     msg.set_content('This is a test email from TrapTracker RT. Email settings are working.')
     host = settings.smtp_host or 'smtp.gmail.com'
     port = settings.smtp_port or 587
-    starttls = settings.smtp_starttls if settings.smtp_starttls is not None else True
-    refused = _smtp_deliver(host, port, starttls, settings, msg)
+    refused = _smtp_deliver(host, port, settings.smtp_mode, settings, msg)
     if refused:
         raise RuntimeError(f'SMTP refused recipients: {refused}')

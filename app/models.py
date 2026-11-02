@@ -69,8 +69,29 @@ class ProjectEmailSettings(Base):
     app_password = Column(String(255), default='')
     search_query = Column(String(500), default='has:attachment newer_than:7d')
     created_at_utc = Column(DateTime, default=datetime.utcnow)
+    # Off = images only arrive in Inbound/ by other means (FTP/SFTP, synced folder).
+    imap_enabled = Column(Boolean, default=True)
+    # 'starttls' | 'ssl' | 'none'. Empty on older databases: derived from smtp_starttls.
+    smtp_security = Column(String(10), default='')
 
     project = relationship('Project', back_populates='email_settings')
+
+    @property
+    def imap_ready(self):
+        """Mailbox ingest is switched on and has what it needs to log in."""
+        return bool(self.imap_enabled is not False and self.imap_host
+                    and self.email_address and self.app_password)
+
+    @property
+    def smtp_mode(self):
+        if self.smtp_security in ('starttls', 'ssl', 'none'):
+            return self.smtp_security
+        return 'starttls' if self.smtp_starttls is not False else 'ssl'
+
+    @property
+    def smtp_ready(self):
+        """Enough to send alerts: a server and a From address (login is optional)."""
+        return bool(self.smtp_host and self.email_address)
 
 
 class AlertRule(Base):
@@ -179,6 +200,8 @@ def _run_lightweight_migrations(engine):
     wanted = {
         'projects': [('desired_running', 'BOOLEAN DEFAULT 0')],
         'detections': [('detector_label', 'VARCHAR(200)'), ('detector_confidence', 'FLOAT')],
+        'project_email_settings': [('imap_enabled', 'BOOLEAN DEFAULT 1'),
+                                   ("smtp_security", "VARCHAR(10) DEFAULT ''")],
     }
     with engine.begin() as conn:
         for table, cols in wanted.items():

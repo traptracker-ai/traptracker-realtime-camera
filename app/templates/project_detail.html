@@ -97,10 +97,13 @@
   <!-- ===================== EMAIL SOURCE ===================== -->
   <div class="card" id="email">
     <h2>Email Source</h2>
-    <div class="hint">The mailbox cameras send images to. App passwords are recommended for Gmail. Leave the password blank to keep the existing one when re-saving.</div>
+    <div class="hint">The mailbox cameras send images to, and the server alerts are sent through. App passwords are recommended for Gmail. Leave the password blank to keep the existing one when re-saving.<br>
+    <b>Keeping images on site:</b> untick mailbox ingest and have cameras upload by FTP/SFTP into this project's <code>Inbound/&lt;Camera&gt;/</code> folder, and send alerts through a mail relay on your own network (see the README).</div>
     <form method="post" action="{{ url_for('email_settings_save', project_id=project.id) }}">
-      <label>Email address<input type="email" name="email_address" value="{{ settings.email_address if settings else '' }}" placeholder="cameras@example.com"></label>
+      <label class="check"><input type="checkbox" name="imap_enabled" {{ 'checked' if not settings or settings.imap_enabled is not false else '' }}> Pull camera images from this mailbox (IMAP)</label>
+      <label>Email address (also the alert sender)<input type="email" name="email_address" value="{{ settings.email_address if settings else '' }}" placeholder="cameras@example.com"></label>
       <label>App password<input type="password" name="app_password" placeholder="{{ '•••••••• (set)' if settings and settings.app_password else 'enter app password' }}"></label>
+      {% if settings and settings.app_password %}<label class="check"><input type="checkbox" name="clear_password"> Clear the saved password (local relay with no login)</label>{% endif %}
       <div class="field-row">
         <label>IMAP host<input type="text" name="imap_host" value="{{ settings.imap_host if settings else 'imap.gmail.com' }}"></label>
         <label>IMAP port<input type="number" name="imap_port" value="{{ settings.imap_port if settings else 993 }}"></label>
@@ -110,7 +113,14 @@
         <label>SMTP host<input type="text" name="smtp_host" value="{{ settings.smtp_host if settings else 'smtp.gmail.com' }}"></label>
         <label>SMTP port<input type="number" name="smtp_port" value="{{ settings.smtp_port if settings else 587 }}"></label>
       </div>
-      <label class="check"><input type="checkbox" name="smtp_starttls" {{ 'checked' if not settings or settings.smtp_starttls else '' }}> Use STARTTLS for SMTP</label>
+      {% set mode = settings.smtp_mode if settings else 'starttls' %}
+      <label>SMTP security
+        <select name="smtp_security">
+          <option value="starttls" {{ 'selected' if mode == 'starttls' else '' }}>STARTTLS (port 587, e.g. Gmail)</option>
+          <option value="ssl" {{ 'selected' if mode == 'ssl' else '' }}>SSL/TLS (port 465)</option>
+          <option value="none" {{ 'selected' if mode == 'none' else '' }}>None (relay on your local network)</option>
+        </select>
+      </label>
       <label>Search query (reference)<input type="text" name="search_query" value="{{ settings.search_query if settings else 'has:attachment newer_than:7d' }}"></label>
       <button class="btn primary" type="submit">Save email settings</button>
     </form>
